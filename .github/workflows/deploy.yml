@@ -1,0 +1,84 @@
+name: CI/CD - Innovatech Chile
+
+on:
+  push:
+    branches:
+      - deploy
+
+env:
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  IMAGE_FRONT:       ${{ secrets.DOCKERHUB_USERNAME }}/innovatech-frontend
+  IMAGE_DESPACHOS:   ${{ secrets.DOCKERHUB_USERNAME }}/innovatech-back-despachos
+  IMAGE_VENTAS:      ${{ secrets.DOCKERHUB_USERNAME }}/innovatech-back-ventas
+
+jobs:
+
+  build-and-push:
+    name: Build y publicar imágenes
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Clonar el repositorio
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      # 2. Login en Docker Hub con secrets
+      - name: Login en Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 4. Build y Push — Frontend
+      - name: Build y Push Frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./front_despacho
+          file: ./front_despacho/Dockerfile
+          push: true
+          tags: ${{ env.IMAGE_FRONT }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # 5. Build y Push — Backend Despachos
+      - name: Build y Push Backend Despachos
+        uses: docker/build-push-action@v5
+        with:
+          context: ./back-Despachos_SpringBoot/Springboot-API-REST-DESPACHO
+          file: ./back-Despachos_SpringBoot/Springboot-API-REST-DESPACHO/Dockerfile
+          push: true
+          tags: ${{ env.IMAGE_DESPACHOS }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # 6. Build y Push — Backend Ventas
+      - name: Build y Push Backend Ventas
+        uses: docker/build-push-action@v5
+        with:
+          context: ./back-Ventas_SpringBoot/Springboot-API-REST
+          file: ./back-Ventas_SpringBoot/Springboot-API-REST/Dockerfile
+          push: true
+          tags: ${{ env.IMAGE_VENTAS }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ─────────────────────────────────────────
+  # JOB 2: DEPLOY automático en EC2
+  # ─────────────────────────────────────────
+  deploy-to-ec2:
+    name: Desplegar en AWS EC2
+    runs-on: ubuntu-latest
+    needs: build-and-push   # Solo corre si el build fue exitoso
+
+    steps:
+      # 7. Despliegue via SSH a la instancia EC2
+      - name: Deploy en EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host:        ${{ secrets.EC2_HOST }}
+          username:    ${{ secrets.EC2_USER }}
+          key:         ${{ secrets.EC2_SSH_KEY }}
+          script: |
