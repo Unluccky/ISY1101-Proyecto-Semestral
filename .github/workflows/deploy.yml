@@ -82,3 +82,19 @@ jobs:
           username:    ${{ secrets.EC2_USER }}
           key:         ${{ secrets.EC2_SSH_KEY }}
           script: |
+            # Ir al directorio del proyecto
+            cd ~/innovatech
+
+            # Actualizar imágenes desde Docker Hub
+            docker pull ${{ env.IMAGE_FRONT }}:latest
+            docker pull ${{ env.IMAGE_DESPACHOS }}:latest
+            docker pull ${{ env.IMAGE_VENTAS }}:latest
+
+            # Detener contenedores actuales y levantar los nuevos
+            docker compose down
+            docker compose up -d
+
+            # Limpiar imágenes antiguas para liberar espacio en EC2
+            docker image prune -f
+
+            echo "✅ Despliegue completado exitosamente"
