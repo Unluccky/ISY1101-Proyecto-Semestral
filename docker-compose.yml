@@ -1,0 +1,79 @@
+version: "3.9"
+
+services:
+
+  front:
+    build:
+      context: ./front_despacho
+      dockerfile: Dockerfile
+    container_name: innovatech-frontend
+    ports:
+      - "80:80"          
+    networks:
+      - red-publica     
+      - red-interna  
+    depends_on:
+      - back-despachos
+      - back-ventas
+    restart: unless-stopped
+
+  # ── Backend Despachos (solo accesible desde red interna) ──
+  back-despachos:
+    build:
+      context: ./back-Despachos_SpringBoot/Springboot-API-REST-DESPACHO
+      dockerfile: Dockerfile
+    container_name: innovatech-back-despachos
+    ports:
+      - "8081:8081"      
+    networks:
+      - red-interna    
+    environment:
+      - DB_ENDPOINT=${DB_ENDPOINT}
+      - DB_PORT=${DB_PORT:-3306}
+      - DB_NAME=${DB_NAME_DESPACHOS}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - despachos-logs:/app/logs   
+    restart: unless-stopped
+
+  # ── Backend Ventas (solo accesible desde red interna) ──
+  back-ventas:
+    build:
+      context: ./back-Ventas_SpringBoot/Springboot-API-REST
+      dockerfile: Dockerfile
+    container_name: innovatech-back-ventas
+    ports:
+      - "8080:8080"    
+    networks:
+      - red-interna     
+    environment:
+      - DB_ENDPOINT=${DB_ENDPOINT}
+      - DB_PORT=${DB_PORT:-3306}
+      - DB_NAME=${DB_NAME_VENTAS}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - ventas-logs:/app/logs      
+    restart: unless-stopped
+
+# ─────────────────────────────────────────
+# REDES
+# ─────────────────────────────────────────
+networks:
+  red-publica:
+    driver: bridge
+    name: innovatech-red-publica
+
+  red-interna:
+    driver: bridge
+    name: innovatech-red-interna
+    internal: true       
+# ─────────────────────────────────────────
+# VOLÚMENES (persistencia de datos)
+# ─────────────────────────────────────────
+volumes:
+  despachos-logs:
+    name: innovatech-despachos-logs
+  ventas-logs:
+    name: innovatech-ventas-logs
